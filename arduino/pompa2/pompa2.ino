@@ -4,19 +4,22 @@
 #include <ESP8266WiFi.h>     // Include the Wi-Fi library
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "DHTesp.h"
+//#include "DHTesp.h"
+#include "DHT.h"
+
 
 //Create software serial object to communicate with SIM800L
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
-const char* ssid     = "BIZNET";     // The SSID (name) of the Wi-Fi network you want to connect to
-const char* password = "restukap";     // The password of the Wi-Fi network
-const char* broker = "103.146.203.97";     // ip / domain your mqtt broker example (192.168.1.2)
+const char* ssid     = "FoXiFi";     // The SSID (name) of the Wi-Fi network you want to connect to
+const char* password = "saipul123258";     // The password of the Wi-Fi network
+const char* broker = "192.168.43.15";     // ip / domain your mqtt broker example (192.168.1.2)
 const char* deviceName = "pompa";      // name of your device
 StaticJsonDocument<250> wrapper;
-DHTesp dht;
-
-
+//DHTesp dht;
+#define dhtPin 16
+#define ad DHT22
+DHT dht(dhtPin, ad);
 boolean res;
 boolean mqttConnect() {
   char buffer[256];
@@ -46,9 +49,9 @@ void setup()
 {
   ESP.eraseConfig();
   SerialMon.begin(9600);
+  dht.begin();
   WiFi.begin(ssid, password);
-  pinMode(D2, INPUT);
-  dht.setup(D2, DHTesp::DHT22); // Connect DHT sensor to GPIO 17
+//  dht.setup(D2, DHTesp::DHT22); // Connect DHT sensor to GPIO 17
   Serial.print("Connecting to ");
   pinMode(D1, OUTPUT); // initialize pin as OUTPUT
   //  digitalWrite(D1,0);
@@ -77,8 +80,9 @@ void loop()
   mqtt.loop();
 //  SerialMon.println(dht.getHumidity());
 //  SerialMon.println(dht.getTemperature());
-//  SerialMon.println(dht.getStatusString());
-//  delay(1000);
+ SerialMon.println(dht.readHumidity());
+  SerialMon.println(dht.readTemperature());
+  delay(1000);
 
 }
 
@@ -104,20 +108,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   } else if (strcmp(topic, "pompa-stats") == 0) {
     if (payload[0] == '1') {
-      delay(dht.getMinimumSamplingPeriod());
-      delay(1000);
-      float humidity = dht.getHumidity();
-      float temperature = dht.getTemperature();
-      SerialMon.println("Get Data");
-      SerialMon.println(humidity);
-      SerialMon.println(temperature);
-      delay(1000);
-
-      doc["humidity"] = humidity;
-      doc["temperature"] = temperature;
-
-      size_t n = serializeJson(doc, buffer);
-      mqtt.publish("pompa-report", buffer, n);
+//      delay(dht.getMinimumSamplingPeriod());
+//      delay(1000);
+//      float humidity = dht.getHumidity();
+//      float temperature = dht.getTemperature();
+//      SerialMon.println("Get Data");
+//      SerialMon.println(humidity);
+//      SerialMon.println(temperature);
+//      delay(1000);
+//
+//      doc["humidity"] = humidity;
+//      doc["temperature"] = temperature;
+//
+//      size_t n = serializeJson(doc, buffer);
+//      mqtt.publish("pompa-report", buffer, n);
     }
   }
   doc.clear();
