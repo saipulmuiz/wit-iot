@@ -1,7 +1,7 @@
 #define SerialMon Serial
 
 #include <SoftwareSerial.h>
-#include <ESP8266WiFi.h>        // Include the Wi-Fi library
+#include <ESP8266WiFi.h>     // Include the Wi-Fi library
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include "DHTesp.h"
@@ -9,9 +9,9 @@
 //Create software serial object to communicate with SIM800L
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
-const char* ssid     = "";     // The SSID (name) of the Wi-Fi network you want to connect to
-const char* password = "";     // The password of the Wi-Fi network
-const char* broker = "";     // ip / domain your mqtt broker example (192.168.1.2)
+const char* ssid     = "SM-NET+";     // The SSID (name) of the Wi-Fi network you want to connect to
+const char* password = "saipul123258";     // The password of the Wi-Fi network
+const char* broker = "103.146.203.97";     // ip / domain your mqtt broker example (192.168.1.2)
 const char* deviceName = "pompa";      // name of your device
 StaticJsonDocument<250> wrapper;
 DHTesp dht;
@@ -28,34 +28,34 @@ boolean mqttConnect() {
   boolean status = mqtt.connect(deviceName);
 
   if (status == false) {
-    SerialMon.println("fail");
+    SerialMon.println(" fail");
     return false;
   }
-  SerialMon.println("success");
+  SerialMon.println(" success");
   mqtt.subscribe("pompa");
   mqtt.subscribe("pompa-stats");
   wrapper["kind"] = "connected";
   wrapper["status"] = true;
-  size_t n = serializeJson(wrapper,buffer);
-  mqtt.publish("report",buffer,n);
+  size_t n = serializeJson(wrapper, buffer);
+  mqtt.publish("report", buffer, n);
   return mqtt.connected();
 }
 void callback(char* topic, byte* payload, unsigned int length);
-
-
 
 void setup()
 {
   ESP.eraseConfig();
   SerialMon.begin(9600);
   WiFi.begin(ssid, password);
+  pinMode(D2, INPUT);
   dht.setup(D2, DHTesp::DHT22); // Connect DHT sensor to GPIO 17
   Serial.print("Connecting to ");
   pinMode(D1, OUTPUT); // initialize pin as OUTPUT
+  //  digitalWrite(D1,0);
   Serial.println(ssid);
   while (WiFi.status() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
-        delay(1000);
-        Serial.print('*');
+    delay(1000);
+    Serial.print('*');
   }
 
 
@@ -66,16 +66,15 @@ void setup()
 
 void loop()
 {
-  
+
   if (!mqtt.connected()) {
-      SerialMon.println("Trying Connecting to mqtt broker");
-    if(mqttConnect()){
+    SerialMon.println("Trying Connecting to mqtt broker");
+    if (mqttConnect()) {
       SerialMon.println("MQTT Connected");
     }
   }
 
   mqtt.loop();
-
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -84,30 +83,36 @@ void callback(char* topic, byte* payload, unsigned int length) {
   doc["deviceName"] = deviceName;
   doc["kind"] = topic;
 
-  if(strcmp(topic, "pompa") == 0){
-    if(payload[0] == '1'){
-      digitalWrite(D1,1);
+  if (strcmp(topic, "pompa") == 0) {
+    if (payload[0] == '1') {
+      digitalWrite(D1, 0);
       doc["status"] = true;
       SerialMon.println("Pompa Nyala");
     }
-    if(payload[0] == '0'){
-      digitalWrite(D1,0);
+    if (payload[0] == '0') {
+      digitalWrite(D1, 1);
       doc["status"] = false;
       SerialMon.println("Pompa Mati");
     }
-      size_t n = serializeJson(doc,buffer);
-      mqtt.publish("pompa-report",buffer,n);
+    size_t n = serializeJson(doc, buffer);
+    mqtt.publish("pompa-report", buffer, n);
 
-  }else if(strcmp(topic, "pompa-stats") == 0){
-    if(payload[0] == '1'){
+  } else if (strcmp(topic, "pompa-stats") == 0) {
+    if (payload[0] == '1') {
+      delay(dht.getMinimumSamplingPeriod());
+      delay(1000);
       float humidity = dht.getHumidity();
       float temperature = dht.getTemperature();
-      
+      SerialMon.println("Get Data");
+      SerialMon.println(humidity);
+      SerialMon.println(temperature);
+      delay(1000);
+
       doc["humidity"] = humidity;
       doc["temperature"] = temperature;
-      
-      size_t n = serializeJson(doc,buffer);
-      mqtt.publish("pompa-report",buffer,n);
+
+      size_t n = serializeJson(doc, buffer);
+      mqtt.publish("pompa-report", buffer, n);
     }
   }
   doc.clear();

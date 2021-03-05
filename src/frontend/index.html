@@ -16,23 +16,23 @@
             <div class="f fe">
                 <div class="icon icon-w"></div>
                 <div class="heading">
-                    <h5 class="date" id="date-weather">1 Feb 2019</h5>
-                    <h3 class="title">Cloudy</h3>
+                    <h5 class="date" id="last-update-day">null</h5>
+                    <h3 class="title">Cloudy <button class="btn" id="refresh"><i class="fas fa-sync"></i></button></h3>
                 </div>
             </div>
 
             <div class="weather f">
                 <div>
-                    <strong>26° C</strong>
+                    <strong id="lblTemp">null</strong>
                     <p>Indoor Temp.</p>
                 </div>
                 <div>
-                    <strong>48.2%</strong>
-                    <p>Outdoor Humidity</p>
+                    <strong id="lblHum">null</strong>
+                    <p>Indoor Humidity</p>
                 </div>
                 <div>
-                    <strong>52.99</strong>
-                    <p>Indoor Temp.</p>
+                    <i class="far fa-clock"></i><strong id="last-update-time"> 11:53:43</strong>
+                    <p>Last Update</p>
                 </div>
             </div>
         </header>
@@ -61,6 +61,15 @@
                     <tbody></tbody>
                 </table>
             </div>
+            <!-- Category -->
+            <div class="category">
+                <ul>
+                    <li><a href="#!" class="active">Living Room</a></li>
+                    <li><a href="#!">Kitchen</a></li>
+                    <li><a href="#!">Dinning</a></li>
+                    <li><a href="#!">Weather</a></li>
+                </ul>
+            </div>
             <!-- Appliances -->
             <div class="appliances">
 
@@ -69,17 +78,17 @@
                     <label for="a">
                         <i class="l"></i>
                         <strong>Lampu</strong>
-                        <span data-o="opened" data-c="closed"></span>
+                        <span id="status-lampu"></span>
                         <small></small>
                     </label>
                 </div>
 
                 <div class="appliance" id="pompa">
-                    <input type="checkbox" name="a">
+                    <input type="checkbox" name="a" id="b">
                     <label for="b">
                         <i class="r"></i>
                         <strong>Pompa Air</strong>
-                        <span data-o="opened" id="status-pompa" data-c="Tidak Aktif"></span>
+                        <span id="status-pompa"></span>
                         <small></small>
                     </label>
                 </div>
@@ -89,7 +98,7 @@
                     <label for="c">
                         <i class="a"></i>
                         <strong>AC</strong>
-                        <span data-o="opened" data-c="closed"></span>
+                        <span id="status-ac"></span>
                         <small></small>
                     </label>
                 </div>
@@ -99,7 +108,7 @@
                     <label for="d">
                         <i class="f"></i>
                         <strong>Kulkas</strong>
-                        <span data-o="opened" data-c="closed"></span>
+                        <span id="status-kulkas"></span>
                         <small></small>
                     </label>
                 </div>
@@ -110,16 +119,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript">
     </script>
     <script>
-        let isOnPompa = false;
+        let device;
         const apiHost = "http://103.146.203.97:8989"; // host your api gateway i.e http://localhost:3000
         var mqtt;
         const mqttHost = "103.146.203.97"; // your mqtt host i.e. localhost
         const mqttPort = 9001; // port mqqt (websocket) default = 9001
         const dateLang = "id-ID" // dateLocale Format
         const speechRecognitionLang = "ID" // language used in speechRecognition i.e "EN"
-        document.getElementById("pompa").addEventListener("click", (event) => {
-            isOn(!isOnPompa);
-        })
+        // Get Data Suhu
+        const refresh = document.getElementById("refresh");
+        refresh.addEventListener("click", function () {
+            getData("pompa");
+        });
+
+        // Home Appliance
+        const checkLampu = document.getElementById("a");
+        const checkPompa = document.getElementById("b");
+        let textLampu = document.getElementById("status-lampu");
+        let textPompa = document.getElementById("status-pompa");
+        checkLampu.checked = false;
+        checkPompa.checked = false;
+        textLampu.setAttribute("data-o", "nyala");
+        textPompa.setAttribute("data-o", "nyala");
+        checkLampu.addEventListener("change", function () {
+            device = "lampu"
+            if (checkLampu.checked == true) {
+                console.log(`${device} nyala`);
+                deviceIsOn(device, true, "Nyala");
+            } else {
+                console.log(`${device} mati`);
+                deviceIsOn(device, false, "Mati");
+            }
+        });
+        checkPompa.addEventListener("change", function () {
+            device = "pompa"
+            if (checkPompa.checked == true) {
+                console.log(`${device} nyala`);
+                deviceIsOn(device, true, "Nyala");
+            } else {
+                console.log(`${device} mati`);
+                deviceIsOn(device, false, "Mati");
+            }
+        });
 
         function mqttConnect() {
             mqtt = new Paho.MQTT.Client(mqttHost, Number(mqttPort), "client-web");
@@ -137,10 +178,11 @@
 
         function onMessageArrived(message) {
             const payload = JSON.parse(message.payloadString);
+            _lastUpdate(false, payload);
             var tablerow = tableref.insertRow(0)
             tablerow.className = 'fade-in'
             tablerow.innerHTML =
-                `<tr class=fade-in> <td>${new Date(payload.date).toLocaleString(dateLang)}</td> <td>${payload.humidity}</td> <td>${payload.temp}</td> </tr>`
+                `<tr class=fade-in> <td>${new Date(payload.date).toLocaleString(dateLang)}</td> <td>${payload.humidity} %</td> <td>${payload.temp} ° C</td> </tr>`
         }
 
         function onConnectionLost(responseObject) {
@@ -166,10 +208,9 @@
                 .catch(error => console.log('error', error));
         }
 
-        function isOn(status) {
-            
+        function deviceIsOn(device, status, deviceStats) {
             const raw = JSON.stringify({
-                "message": status ? "nyalakan pompa":"matikan pompa"
+                "message": status ? `nyalakan ${device}` : `matikan ${device}`
             });
             fetch(apiHost + "/send", {
                     method: 'POST',
@@ -183,8 +224,24 @@
                 .then(result => console.log(result))
                 .catch(error => console.log('error', error));
 
-                document.getElementById("status-pompa").setAttribute('data-c',  status ? "Aktif":"Tidak Aktif");
-                isOnPompa = status;
+            document.getElementById(`status-${device}`).setAttribute('data-o', deviceStats);
+        }
+
+        function getData(device) {
+            const raw = JSON.stringify({
+                "message": `ambil data ${device}`
+            });
+            fetch(apiHost + "/send", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: raw,
+                    redirect: 'follow'
+                })
+                .then(response => response.text())
+                .then(result => console.log(result))
+                .catch(error => console.log('error', error));
         }
 
         function logEvent(string) {
@@ -198,9 +255,10 @@
             fetch(apiHost + "/sensor-data")
                 .then(response => response.json())
                 .then(result => {
+                    _lastUpdate(true, result[0]);
                     result.forEach(res => {
                         tableref.insertRow(tableref.rows.length).innerHTML =
-                            `<tr> <td>${new Date(res.date).toLocaleString("id-ID")}</td> <td>${res.payload.hum}</td> <td>${res.payload.temp}</td> </tr>`
+                            `<tr> <td>${new Date(res.date).toLocaleString(dateLang)}</td> <td>${res.payload.hum} %</td> <td>${res.payload.temp}° C</td> </tr>`
                     })
                 });
 
@@ -208,7 +266,6 @@
         });
 
         window.onload = () => {
-            document.getElementById('date-weather').innerHTML = _dayNow();
             window.SpeechRecognition = window.SpeechRecognition ||
                 window.webkitSpeechRecognition ||
                 null;
@@ -270,13 +327,38 @@
             }
         }
 
-        function _dayNow() {
-            let date, hari, tanggal, bulan, tahun;
+        function _lastUpdate(statusLoaded, result) {
+            if (statusLoaded) {
+                let lastUpdateTime = _timeUpdate(new Date(result.date));
+                let lastUpdateDay = _dayUpdate(new Date(result.date));
+                document.getElementById('lblTemp').innerHTML = `${result.payload.temp}° C`;
+                document.getElementById('lblHum').innerHTML = `${result.payload.hum}%`;
+                document.getElementById('last-update-time').innerHTML = ` ${lastUpdateTime}`;
+                document.getElementById('last-update-day').innerHTML = ` ${lastUpdateDay}`;
+            } else {
+                let lastUpdateTime = _timeUpdate(new Date(result.date));
+                let lastUpdateDay = _dayUpdate(new Date(result.date));
+                document.getElementById('lblTemp').innerHTML = `${result.temp}° C`;
+                document.getElementById('lblHum').innerHTML = `${result.humidity}%`;
+                document.getElementById('last-update-time').innerHTML = ` ${lastUpdateTime}`;
+                document.getElementById('last-update-day').innerHTML = ` ${lastUpdateDay}`;
+            }
+        }
+
+        function _timeUpdate(time) {
+            let h, m, s;
+            h = time.getHours();
+            m = time.getMinutes();
+            s = time.getSeconds();
+            return ` ${h}:${m}:${s}`;
+        }
+
+        function _dayUpdate(date) {
+            let hari, tanggal, bulan, tahun;
             let arrbulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September",
                 "Oktober", "November", "Desember"
             ];
             let myDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jum&#39;at', 'Sabtu'];
-            date = new Date();
             hari = date.getDay();
             tanggal = date.getDate();
             bulan = date.getMonth();

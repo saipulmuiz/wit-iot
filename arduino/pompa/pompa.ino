@@ -9,8 +9,8 @@
 //Create software serial object to communicate with SIM800L
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
-const char* ssid     = "BIZNET";     // The SSID (name) of the Wi-Fi network you want to connect to
-const char* password = "restukap";     // The password of the Wi-Fi network
+const char* ssid     = "SM-NET+";     // The SSID (name) of the Wi-Fi network you want to connect to
+const char* password = "saipul123258";     // The password of the Wi-Fi network
 const char* broker = "103.146.203.97";     // ip / domain your mqtt broker example (192.168.1.2)
 const char* deviceName = "pompa";      // name of your device
 StaticJsonDocument<250> wrapper;
@@ -58,7 +58,6 @@ void setup()
     Serial.print('*');
   }
 
-
   mqtt.setServer(broker, 1883); // connect to mqtt broker with port (default : 1883)
   mqtt.setCallback(callback);
 
@@ -66,20 +65,13 @@ void setup()
 
 void loop()
 {
-
   if (!mqtt.connected()) {
     SerialMon.println("Trying Connecting to mqtt broker");
     if (mqttConnect()) {
       SerialMon.println("MQTT Connected");
     }
   }
-
   mqtt.loop();
-//  SerialMon.println(dht.getHumidity());
-//  SerialMon.println(dht.getTemperature());
-//  SerialMon.println(dht.getStatusString());
-//  delay(1000);
-
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
